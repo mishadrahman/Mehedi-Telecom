@@ -5,7 +5,7 @@ import { useToast } from '../ToastContext';
 import { useAuth } from '../AuthContext';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { sendOrderToTelegram, getFirebaseErrorMessage } from '../lib/utils';
+import { sendOrderToTelegram, getFirebaseErrorMessage, sendEmail } from '../lib/utils';
 import { CreditCard, Truck, CheckCircle2, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -50,6 +50,28 @@ const Checkout = () => {
       
       // Send to Telegram
       await sendOrderToTelegram(orderData);
+
+      // Send email notification via smtp.js (non-blocking)
+      if (orderData.userEmail && orderData.userEmail !== 'N/A') {
+        sendEmail(
+          orderData.userEmail,
+          "Order Confirmation - Mehedi Telecom",
+          `
+            <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto;">
+              <h2 style="color: #ea580c;">Mehedi Telecom</h2>
+              <p>Hello ${orderData.customerName},</p>
+              <p>Thank you for your order! We have received it and are currently processing it.</p>
+              <p><strong>Order Total:</strong> ৳${orderData.totalPrice.toLocaleString()}</p>
+              <p><strong>Payment Method:</strong> ${orderData.paymentMethod}</p>
+              <p>We will notify you once your order is shipped.</p>
+            </div>
+          `
+        ).then(success => {
+          if (!success) {
+            console.warn('Order placed, but email notification was blocked by browser.');
+          }
+        });
+      }
 
       setOrderSuccess(true);
       clearCart();

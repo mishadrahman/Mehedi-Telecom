@@ -1,23 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, orderBy 
 } from 'firebase/firestore';
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Product, Order, Banner } from '../types';
-import { uploadToTelegram, getFirebaseErrorMessage } from '../lib/utils';
+import { uploadToTelegram, getFirebaseErrorMessage, sendEmail } from '../lib/utils';
 import { useToast } from '../ToastContext';
 import { 
   Plus, Trash2, Edit, Package, ShoppingBag, LogOut, 
   Upload, CheckCircle, Clock, Truck, Search, Image as ImageIcon,
-  Printer, X
+  Printer, X, Users, LayoutDashboard, TrendingUp, DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell
+} from 'recharts';
 
 const Admin = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'banners'>('products');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'users' | 'banners'>('dashboard');
   const { showToast } = useToast();
 
   // Auth State
@@ -122,6 +127,16 @@ const Admin = () => {
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${
+              activeTab === 'dashboard' ? 'bg-orange-600 text-white shadow-lg shadow-orange-200' : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <LayoutDashboard size={20} /> Dashboard
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setActiveTab('products')}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${
               activeTab === 'products' ? 'bg-orange-600 text-white shadow-lg shadow-orange-200' : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -138,6 +153,16 @@ const Admin = () => {
             }`}
           >
             <ShoppingBag size={20} /> Orders
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${
+              activeTab === 'users' ? 'bg-orange-600 text-white shadow-lg shadow-orange-200' : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Users size={20} /> Users
           </motion.button>
           <motion.button 
             whileHover={{ scale: 1.02 }}
@@ -159,7 +184,11 @@ const Admin = () => {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'products' ? <ProductManager /> : activeTab === 'orders' ? <OrderManager /> : <BannerManager />}
+            {activeTab === 'dashboard' ? <DashboardManager /> : 
+             activeTab === 'products' ? <ProductManager /> : 
+             activeTab === 'orders' ? <OrderManager /> : 
+             activeTab === 'users' ? <UserManager /> : 
+             <BannerManager />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -525,12 +554,32 @@ const OrderManager = () => {
     window.print();
   };
 
-  const updateStatus = async (id: string, status: Order['status']) => {
+  const updateStatus = async (id: string, status: Order['status'], userEmail: string, customerName: string) => {
     const path = `orders/${id}`;
     try {
       await updateDoc(doc(db, 'orders', id), { status });
       showToast(`Order marked as ${status}`, 'success');
       fetchOrders();
+
+      // Send email notification via smtp.js (non-blocking)
+      if (userEmail && userEmail !== 'N/A') {
+        sendEmail(
+          userEmail,
+          `Order Status Update - ${status}`,
+          `
+            <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto;">
+              <h2 style="color: #ea580c;">Mehedi Telecom</h2>
+              <p>Hello ${customerName},</p>
+              <p>Your order status has been updated to: <strong style="color: #ea580c;">${status}</strong></p>
+              <p>Thank you for shopping with us!</p>
+            </div>
+          `
+        ).then(success => {
+          if (!success) {
+            console.warn('Status updated, but email notification was blocked by browser.');
+          }
+        });
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
       showToast('Update failed', 'error');
@@ -601,7 +650,7 @@ const OrderManager = () => {
                       <select 
                         className="w-full p-2 border border-gray-200 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500"
                         value={order.status}
-                        onChange={(e) => updateStatus(order.id!, e.target.value as Order['status'])}
+                        onChange={(e) => updateStatus(order.id!, e.target.value as Order['status'], order.userEmail || 'N/A', order.customerName)}
                       >
                         <option value="Pending">Pending</option>
                         <option value="Confirmed">Confirmed</option>
@@ -629,16 +678,17 @@ const OrderManager = () => {
       </div>
 
       {/* Print Receipt Modal */}
-      <AnimatePresence>
-        {printingOrder && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setPrintingOrder(null)}
-            id="printable-receipt-container"
-            className="fixed inset-0 bg-black/60 z-[9999] flex items-start justify-center p-4 overflow-y-auto backdrop-blur-sm print:bg-transparent print:p-0 print:block"
-          >
+      {createPortal(
+        <AnimatePresence>
+          {printingOrder && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPrintingOrder(null)}
+              id="printable-receipt-container"
+              className="fixed inset-0 bg-black/60 z-[9999] flex items-start justify-center p-4 overflow-y-auto backdrop-blur-sm print:bg-transparent print:p-0 print:block"
+            >
             <motion.div 
               initial={{ scale: 0.9, y: 40 }}
               animate={{ scale: 1, y: 0 }}
@@ -747,8 +797,213 @@ const OrderManager = () => {
               </div>
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+const DashboardManager = () => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const ordersSnapshot = await getDocs(collection(db, 'orders'));
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const productsSnapshot = await getDocs(collection(db, 'products'));
+
+        setOrders(ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
+        setUsers(usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) return <div className="py-12 text-center">Loading dashboard data...</div>;
+
+  // Calculate total revenue
+  const totalRevenue = orders.reduce((sum, order) => sum + order.totalPrice, 0);
+
+  // Process monthly revenue
+  const monthlyRevenueMap: Record<string, number> = {};
+  orders.forEach(order => {
+    const date = new Date(order.createdAt);
+    const monthYear = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+    monthlyRevenueMap[monthYear] = (monthlyRevenueMap[monthYear] || 0) + order.totalPrice;
+  });
+  const monthlyRevenueData = Object.entries(monthlyRevenueMap).map(([name, revenue]) => ({ name, revenue }));
+
+  // Process top selling products
+  const productSalesMap: Record<string, number> = {};
+  orders.forEach(order => {
+    order.items.forEach(item => {
+      productSalesMap[item.name] = (productSalesMap[item.name] || 0) + item.quantity;
+    });
+  });
+  const topProductsData = Object.entries(productSalesMap)
+    .map(([name, sales]) => ({ name, sales }))
+    .sort((a, b) => b.sales - a.sales)
+    .slice(0, 5);
+
+  const COLORS = ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#fed7aa'];
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-900">Dashboard Overview</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-orange-100 p-4 rounded-full text-orange-600">
+            <DollarSign size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total Revenue</p>
+            <p className="text-2xl font-bold text-gray-900">৳{totalRevenue.toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-blue-100 p-4 rounded-full text-blue-600">
+            <ShoppingBag size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total Orders</p>
+            <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-green-100 p-4 rounded-full text-green-600">
+            <Users size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total Users</p>
+            <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold mb-6">Monthly Revenue</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyRevenueData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value) => `৳${value.toLocaleString()}`} />
+                <Bar dataKey="revenue" fill="#ea580c" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold mb-6">Top Selling Products</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={topProductsData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="sales"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {topProductsData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const UserManager = () => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  if (loading) return <div className="py-12 text-center">Loading users...</div>;
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-900">Manage Users</h2>
+      
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-sm uppercase tracking-wider">
+                <th className="p-4 font-semibold">Name</th>
+                <th className="p-4 font-semibold">Email</th>
+                <th className="p-4 font-semibold">Role</th>
+                <th className="p-4 font-semibold">Joined Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                        {user.name?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <span className="font-medium text-gray-900">{user.name || 'N/A'}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-gray-600">{user.email}</td>
+                  <td className="p-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {user.role || 'user'}
+                    </span>
+                  </td>
+                  <td className="p-4 text-gray-500 text-sm">
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {users.length === 0 && (
+            <div className="p-8 text-center text-gray-500">No users found.</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

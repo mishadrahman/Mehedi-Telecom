@@ -76,9 +76,11 @@ const Profile = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-        <div className="bg-gradient-to-r from-orange-600 to-red-600 h-32 md:h-48"></div>
+        <div className="bg-gradient-to-r from-orange-600 to-red-600 h-32 md:h-48 relative flex justify-center">
+          <h1 className="text-white font-black text-3xl md:text-5xl tracking-widest absolute top-6 md:top-10 select-none drop-shadow-md">MEHEDI TELECOM</h1>
+        </div>
         
-        <div className="px-8 pb-12 -mt-16 md:-mt-24">
+        <div className="px-8 pb-12 -mt-16 md:-mt-24 relative z-10">
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="flex flex-col items-center">
               <div className="relative group">

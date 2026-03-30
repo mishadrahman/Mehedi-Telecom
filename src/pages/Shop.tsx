@@ -99,55 +99,6 @@ const Shop = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8"
-      >
-        <h1 className="text-3xl font-bold text-gray-900">All Mobiles</h1>
-        
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search by model name..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          
-          {/* Search Suggestions */}
-          <AnimatePresence>
-            {searchTerm.length > 1 && products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute top-full left-0 right-0 bg-white mt-2 rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden max-h-80 overflow-y-auto"
-              >
-                {products
-                  .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                  .slice(0, 6)
-                  .map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => { setSearchTerm(p.name); }}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
-                    >
-                      <img src={p.image} alt="" className="w-10 h-10 object-contain rounded bg-gray-50" />
-                      <div>
-                        <p className="font-bold text-sm text-gray-900">{p.name}</p>
-                        <p className="text-xs text-gray-500">৳{(p.discountPrice || p.price).toLocaleString()}</p>
-                      </div>
-                    </button>
-                  ))
-                }
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Filters Sidebar */}
         <motion.div 
@@ -209,6 +160,21 @@ const Shop = () => {
 
         {/* Product Grid */}
         <div className="lg:col-span-9">
+          {searchTerm && (
+            <div className="mb-6 flex items-center gap-2">
+              <span className="text-gray-600">Showing results for:</span>
+              <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-semibold flex items-center gap-2">
+                "{searchTerm}"
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="hover:text-orange-900 focus:outline-none"
+                >
+                  &times;
+                </button>
+              </span>
+            </div>
+          )}
+          
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map(i => (
