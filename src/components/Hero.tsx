@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Banner } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 const defaultBanners = [
+// ... existing defaultBanners ...
   {
     id: '1',
     image: "https://picsum.photos/seed/mobile1/1600/900",
@@ -23,6 +25,8 @@ const defaultBanners = [
 ];
 
 const Hero = () => {
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
   const [banners, setBanners] = useState<Banner[]>(() => {
     const cached = localStorage.getItem('hero_banners');
     try {
@@ -33,6 +37,13 @@ const Hero = () => {
   });
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(banners.length === 0);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      navigate(`/shop?search=${encodeURIComponent(searchTerm.trim())}`);
+    }
+  };
 
   const preloadImages = (data: Banner[]) => {
     data.forEach(banner => {
@@ -85,7 +96,27 @@ const Hero = () => {
   if (banners.length === 0) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="max-w-7xl mx-auto px-4 py-4 space-y-8">
+      {/* Search Bar Section */}
+      <div className="max-w-2xl mx-auto w-full">
+        <form onSubmit={handleSearch} className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors" size={22} />
+          <input 
+            type="text" 
+            placeholder="Search for mobiles, accessories, gadgets..."
+            className="w-full pl-12 pr-32 py-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-lg"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <button 
+            type="submit"
+            className="hidden md:block absolute right-2 top-2 bottom-2 px-6 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition-colors shadow-lg shadow-orange-200"
+          >
+            Search
+          </button>
+        </form>
+      </div>
+
       <div className="relative w-full aspect-[16/9] overflow-hidden bg-gray-200 rounded-2xl shadow-lg">
         <AnimatePresence mode="wait">
           <motion.div

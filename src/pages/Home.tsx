@@ -12,17 +12,39 @@ const Home = () => {
   const [featured, setFeatured] = useState<Product[]>([]);
   const [latest, setLatest] = useState<Product[]>([]);
   const [recommended, setRecommended] = useState<Product[]>([]);
+  const [categoryProducts, setCategoryProducts] = useState<{[key: string]: Product[]}>({});
+  const [existingCategories, setExistingCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch Latest & Featured
-        const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'), limit(8));
-        const snapshot = await getDocs(q);
-        const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        setLatest(products);
-        setFeatured(products.slice(0, 4));
+        // Fetch all products to determine existing categories
+        const allSnapshot = await getDocs(collection(db, 'products'));
+        const allProducts = allSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        
+        const categories = [...new Set(allProducts.map(p => p.category))].filter(Boolean);
+        setExistingCategories(categories);
+
+        // Fetch Latest
+        const latestProducts = [...allProducts]
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, 8);
+        setLatest(latestProducts);
+
+        // Fetch Featured
+        let featuredProducts = allProducts.filter(p => p.isFeatured).slice(0, 4);
+        if (featuredProducts.length === 0) {
+          featuredProducts = latestProducts.slice(0, 4);
+        }
+        setFeatured(featuredProducts);
+
+        // Group products by category for sections
+        const catData: {[key: string]: Product[]} = {};
+        for (const cat of categories) {
+          catData[cat] = allProducts.filter(p => p.category === cat).slice(0, 4);
+        }
+        setCategoryProducts(catData);
 
         // Fetch Recommendations based on history
         const viewedCategories = JSON.parse(localStorage.getItem('viewed_categories') || '{}');
@@ -32,13 +54,9 @@ const Home = () => {
           .map(entry => entry[0]);
 
         if (topCategories.length > 0) {
-          const recQuery = query(
-            collection(db, 'products'),
-            where('category', 'in', topCategories),
-            limit(4)
-          );
-          const recSnapshot = await getDocs(recQuery);
-          const recProducts = recSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+          const recProducts = allProducts
+            .filter(p => topCategories.includes(p.category))
+            .slice(0, 4);
           setRecommended(recProducts);
         }
       } catch (error) {
@@ -149,19 +167,65 @@ const Home = () => {
           <h2 className="text-3xl font-bold text-gray-900">Shop by Brand</h2>
           <p className="text-gray-500">Find your favorite mobile brand</p>
         </motion.div>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-          {['Apple', 'Samsung', 'Xiaomi', 'Vivo', 'Oppo', 'Realme'].map((brand) => (
+        <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-4">
+          {['Apple', 'Samsung', 'Xiaomi', 'Vivo', 'Oppo', 'Realme', 'Tecno', 'Infinix', 'Itel', 'Honor'].map((brand) => (
             <Link 
               key={brand}
               to={`/shop?brand=${brand}`}
-              className="bg-white p-6 rounded-2xl border border-gray-100 flex flex-col items-center justify-center gap-3 hover:shadow-lg hover:border-orange-200 transition-all group"
+              className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col items-center justify-center gap-2 hover:shadow-lg hover:border-orange-200 transition-all group"
             >
-              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-orange-600 transition-colors">
-                <Smartphone size={24} />
+              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-orange-600 transition-colors">
+                <Smartphone size={20} />
               </div>
-              <span className="font-bold text-gray-700 group-hover:text-orange-600">{brand}</span>
+              <span className="font-bold text-xs text-gray-700 group-hover:text-orange-600 text-center">{brand}</span>
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* Shop by Category */}
+      <section className="max-w-7xl mx-auto px-4 mb-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-8"
+        >
+          <h2 className="text-3xl font-bold text-gray-900">Shop by Category</h2>
+          <p className="text-gray-500">Explore products by their category</p>
+        </motion.div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {existingCategories.map((catName) => {
+            const icons: {[key: string]: any} = {
+              'Smartphones': <Smartphone size={24} />,
+              'Accessories': <Truck size={24} />,
+              'Tablets': <Smartphone size={24} />,
+              'Gadgets': <ShieldCheck size={24} />,
+              'Laptops': <Smartphone size={24} />,
+              'Smartwatches': <ShieldCheck size={24} />
+            };
+            const colors: {[key: string]: string} = {
+              'Smartphones': 'bg-blue-50 text-blue-600',
+              'Accessories': 'bg-orange-50 text-orange-600',
+              'Tablets': 'bg-purple-50 text-purple-600',
+              'Gadgets': 'bg-green-50 text-green-600',
+              'Laptops': 'bg-indigo-50 text-indigo-600',
+              'Smartwatches': 'bg-pink-50 text-pink-600'
+            };
+
+            return (
+              <Link 
+                key={catName}
+                to={`/shop?category=${catName}`}
+                className="bg-white p-6 rounded-2xl border border-gray-100 flex items-center gap-4 hover:shadow-lg hover:border-orange-200 transition-all group"
+              >
+                <div className={`w-12 h-12 rounded-xl ${colors[catName] || 'bg-gray-50 text-gray-600'} flex items-center justify-center transition-transform group-hover:scale-110`}>
+                  {icons[catName] || <Smartphone size={24} />}
+                </div>
+                <span className="font-bold text-gray-800">{catName}</span>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -223,7 +287,7 @@ const Home = () => {
       </section>
 
       {/* Latest Mobiles */}
-      <section className="max-w-7xl mx-auto px-4">
+      <section className="max-w-7xl mx-auto px-4 mb-16">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
@@ -260,6 +324,42 @@ const Home = () => {
           </motion.div>
         )}
       </section>
+
+      {/* Category Wise Sections */}
+      {Object.entries(categoryProducts).map(([category, products]) => {
+        const catProducts = products as Product[];
+        return catProducts.length > 0 && (
+          <section key={category} className="max-w-7xl mx-auto px-4 mb-16">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="flex justify-between items-end mb-8"
+            >
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900">{category}</h2>
+                <p className="text-gray-500">Top picks in {category}</p>
+              </div>
+              <Link to={`/shop?category=${category}`} className="text-orange-600 font-semibold flex items-center gap-1 hover:gap-2 transition-all">
+                View All <ArrowRight size={20} />
+              </Link>
+            </motion.div>
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={containerVariants}
+              className="grid grid-cols-2 md:grid-cols-4 gap-6"
+            >
+              {catProducts.map(product => (
+                <motion.div key={product.id} variants={itemVariants}>
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </section>
+        );
+      })}
     </div>
   );
 };

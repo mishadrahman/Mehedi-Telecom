@@ -12,6 +12,7 @@ export interface Product {
   createdAt: number;
   rating?: number;
   reviewCount?: number;
+  isFeatured?: boolean;
 }
 
 export interface Review {

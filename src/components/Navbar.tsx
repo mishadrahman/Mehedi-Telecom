@@ -93,14 +93,16 @@ const Navbar = () => {
                         <ClipboardList size={18} />
                         My Orders
                       </Link>
-                      <Link 
-                        to="/admin" 
-                        onClick={() => setIsProfileOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 transition-colors"
-                      >
-                        <LayoutDashboard size={18} />
-                        Admin Panel
-                      </Link>
+                      {userData?.role === 'admin' && (
+                        <Link 
+                          to="/admin" 
+                          onClick={() => setIsProfileOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 transition-colors"
+                        >
+                          <LayoutDashboard size={18} />
+                          Admin Panel
+                        </Link>
+                      )}
                       <button 
                         onClick={() => { handleLogout(); setIsProfileOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors"
@@ -170,9 +172,11 @@ const Navbar = () => {
                     <Link to="/orders" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-gray-600 font-medium py-2">
                       <ClipboardList size={18} /> My Orders
                     </Link>
-                    <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-gray-600 font-medium py-2">
-                      <LayoutDashboard size={18} /> Admin Panel
-                    </Link>
+                    {userData?.role === 'admin' && (
+                      <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-gray-600 font-medium py-2">
+                        <LayoutDashboard size={18} /> Admin Panel
+                      </Link>
+                    )}
                     <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} className="flex items-center gap-2 text-red-600 font-medium py-2 w-full text-left">
                       <LogOut size={18} /> Logout
                     </button>

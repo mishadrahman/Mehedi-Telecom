@@ -12,18 +12,23 @@ const Shop = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const initialBrand = queryParams.get('brand') || 'All';
+  const initialCategory = queryParams.get('category') || 'All';
 
   const [products, setProducts] = useState<Product[]>([]);
   const [filtered, setFiltered] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [brandFilter, setBrandFilter] = useState(initialBrand);
-  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState(initialCategory);
   const [priceRange, setPriceRange] = useState('All');
 
   useEffect(() => {
     const brand = queryParams.get('brand');
+    const category = queryParams.get('category');
+    const search = queryParams.get('search');
     if (brand) setBrandFilter(brand);
+    if (category) setCategoryFilter(category);
+    if (search) setSearchTerm(search);
   }, [location.search]);
 
   useEffect(() => {
@@ -143,24 +148,24 @@ const Shop = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Filters Sidebar */}
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-1 space-y-8"
+          className="lg:col-span-3 space-y-6"
         >
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-24">
-            <div className="flex items-center gap-2 mb-6 font-bold text-lg">
-              <SlidersHorizontal size={20} />
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 sticky top-24">
+            <div className="flex items-center gap-2 mb-4 font-bold text-base">
+              <SlidersHorizontal size={18} />
               Filters
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Brand</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Brand</label>
                 <select 
-                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
                   value={brandFilter}
                   onChange={(e) => setBrandFilter(e.target.value)}
                 >
@@ -171,9 +176,9 @@ const Shop = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Category</label>
                 <select 
-                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                 >
@@ -184,9 +189,9 @@ const Shop = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Price Range</label>
                 <select 
-                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-50"
                   value={priceRange}
                   onChange={(e) => setPriceRange(e.target.value)}
                 >
@@ -203,7 +208,7 @@ const Shop = () => {
         </motion.div>
 
         {/* Product Grid */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-9">
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map(i => (

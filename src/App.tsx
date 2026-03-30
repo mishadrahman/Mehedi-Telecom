@@ -17,6 +17,7 @@ import Signup from './pages/Signup';
 import Profile from './pages/Profile';
 import OrderHistory from './pages/OrderHistory';
 import Wishlist from './pages/Wishlist';
+import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
   return (
@@ -35,7 +36,14 @@ export default function App() {
                     <Route path="/cart" element={<Cart />} />
                     <Route path="/wishlist" element={<Wishlist />} />
                     <Route path="/checkout" element={<Checkout />} />
-                    <Route path="/admin" element={<Admin />} />
+                    <Route 
+                      path="/admin" 
+                      element={
+                        <ProtectedRoute requireAdmin>
+                          <Admin />
+                        </ProtectedRoute>
+                      } 
+                    />
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/profile" element={<Profile />} />

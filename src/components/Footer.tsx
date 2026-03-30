@@ -49,7 +49,7 @@ const Footer = () => {
       {/* Sticky Contact Buttons */}
       <div className={`fixed ${isProductPage ? 'bottom-28' : 'bottom-6'} right-6 flex flex-col gap-3 z-50`}>
         <a 
-          href="https://wa.me/8801234567890" 
+          href="https://wa.me/8801786958055" 
           target="_blank" 
           rel="noopener noreferrer"
           className="bg-green-500 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform"
@@ -57,7 +57,7 @@ const Footer = () => {
           <MessageCircle size={28} />
         </a>
         <a 
-          href="tel:+8801234567890" 
+          href="tel:+8801786958055" 
           className="bg-orange-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform"
         >
           <Phone size={28} />

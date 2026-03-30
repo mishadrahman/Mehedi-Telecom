@@ -183,7 +183,8 @@ const ProductManager = () => {
     category: 'Smartphones',
     shortSpecs: '',
     fullSpecs: '',
-    stockStatus: 'In Stock'
+    stockStatus: 'In Stock',
+    isFeatured: false
   };
 
   const [formData, setFormData] = useState<Partial<Product>>(initialFormState);
@@ -207,7 +208,8 @@ const ProductManager = () => {
       category: product.category || 'Smartphones',
       shortSpecs: product.shortSpecs,
       fullSpecs: product.fullSpecs,
-      stockStatus: product.stockStatus
+      stockStatus: product.stockStatus,
+      isFeatured: product.isFeatured || false
     });
     setIsAdding(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -235,6 +237,7 @@ const ProductManager = () => {
         image: imageUrl,
         price: Number(formData.price) || 0,
         discountPrice: Number(formData.discountPrice) || 0,
+        isFeatured: formData.isFeatured || false,
         updatedAt: Date.now()
       };
 
@@ -317,17 +320,37 @@ const ProductManager = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Brand</label>
-                  <input required type="text" className="w-full p-3 border border-gray-200 rounded-xl" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} />
+                  <input 
+                    required 
+                    type="text" 
+                    list="brands-list"
+                    className="w-full p-3 border border-gray-200 rounded-xl" 
+                    placeholder="e.g. Apple, Samsung, Tecno..."
+                    value={formData.brand} 
+                    onChange={e => setFormData({...formData, brand: e.target.value})} 
+                  />
+                  <datalist id="brands-list">
+                    {['Apple', 'Samsung', 'Xiaomi', 'Vivo', 'Oppo', 'Realme', 'Tecno', 'Infinix', 'Itel', 'Honor'].map(b => (
+                      <option key={b} value={b} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Category</label>
-                  <select required className="w-full p-3 border border-gray-200 rounded-xl" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                    <option value="Smartphones">Smartphones</option>
-                    <option value="Tablets">Tablets</option>
-                    <option value="Accessories">Accessories</option>
-                    <option value="Laptops">Laptops</option>
-                    <option value="Smartwatches">Smartwatches</option>
-                  </select>
+                  <input 
+                    required 
+                    type="text" 
+                    list="categories-list"
+                    className="w-full p-3 border border-gray-200 rounded-xl" 
+                    placeholder="e.g. Smartphones, Accessories, Gadgets..."
+                    value={formData.category} 
+                    onChange={e => setFormData({...formData, category: e.target.value})} 
+                  />
+                  <datalist id="categories-list">
+                    {['Smartphones', 'Tablets', 'Accessories', 'Laptops', 'Smartwatches', 'Gadgets'].map(c => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium mb-1">Short Specs</label>
@@ -347,6 +370,16 @@ const ProductManager = () => {
                 <div>
                   <label className="block text-sm font-medium mb-1">Product Image {editingProduct && '(Leave empty to keep current)'}</label>
                   <input required={!editingProduct} type="file" accept="image/*" className="w-full p-2 border border-gray-200 rounded-xl" onChange={e => setImageFile(e.target.files?.[0] || null)} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="isFeatured"
+                    className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                    checked={formData.isFeatured}
+                    onChange={e => setFormData({...formData, isFeatured: e.target.checked})}
+                  />
+                  <label htmlFor="isFeatured" className="text-sm font-medium text-gray-700">Featured Product (Show in Featured section)</label>
                 </div>
                 <div className="md:col-span-2">
                   <motion.button 
@@ -393,7 +426,10 @@ const ProductManager = () => {
                       <img src={p.image} alt="" className="w-12 h-12 object-contain bg-gray-50 rounded" referrerPolicy="no-referrer" />
                       <div>
                         <p className="font-bold text-gray-900">{p.name}</p>
-                        <p className="text-xs text-gray-500">{p.brand}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500">{p.brand}</p>
+                          {p.isFeatured && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">Featured</span>}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -483,10 +519,10 @@ const OrderManager = () => {
 
   const handlePrint = (order: Order) => {
     setPrintingOrder(order);
-    setTimeout(() => {
-      window.print();
-      setPrintingOrder(null);
-    }, 100);
+  };
+
+  const triggerPrint = () => {
+    window.print();
   };
 
   const updateStatus = async (id: string, status: Order['status']) => {
@@ -592,82 +628,127 @@ const OrderManager = () => {
         </AnimatePresence>
       </div>
 
-      {/* Print-only Receipt Component */}
-      {printingOrder && (
-        <div className="fixed inset-0 bg-white z-[9999] p-8 print:block hidden overflow-auto" id="printable-receipt">
-          <div className="max-w-2xl mx-auto border-2 border-gray-200 p-8 rounded-lg">
-            <div className="text-center mb-8 border-b-2 border-gray-100 pb-6">
-              <h1 className="text-3xl font-black text-orange-600 mb-1">MEHEDI TELECOM</h1>
-              <p className="text-gray-500 text-sm">Your Trusted Mobile Shop</p>
-              <p className="text-gray-400 text-xs mt-2">Main Road, Your City, Bangladesh</p>
-              <p className="text-gray-400 text-xs">Phone: +880 1234 567890</p>
-            </div>
+      {/* Print Receipt Modal */}
+      <AnimatePresence>
+        {printingOrder && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPrintingOrder(null)}
+            id="printable-receipt-container"
+            className="fixed inset-0 bg-black/60 z-[9999] flex items-start justify-center p-4 overflow-y-auto backdrop-blur-sm print:bg-transparent print:p-0 print:block"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 40 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 40 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-8 print:my-0 print:shadow-none print:rounded-none"
+              id="printable-receipt"
+            >
+              {/* Modal Header - Hidden on Print */}
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center print:hidden sticky top-0 z-20">
+                <div className="flex items-center gap-2 text-gray-700">
+                  <Printer size={20} className="text-orange-600" />
+                  <span className="font-bold">Order Receipt Preview</span>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={triggerPrint}
+                    className="bg-orange-600 text-white px-5 py-2 rounded-xl font-bold text-sm hover:bg-orange-700 transition-all flex items-center gap-2 shadow-lg shadow-orange-200 active:scale-95"
+                  >
+                    <Printer size={16} /> Print Now
+                  </button>
+                  <button 
+                    onClick={() => setPrintingOrder(null)}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all active:scale-90"
+                    title="Close Preview"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-2 gap-8 mb-8">
-              <div>
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Customer Details</h3>
-                <p className="font-bold text-lg">{printingOrder.customerName}</p>
-                <p className="text-gray-600 text-sm">{printingOrder.phone}</p>
-                <p className="text-gray-600 text-sm">{printingOrder.userEmail || 'N/A'}</p>
-                <p className="text-gray-600 text-sm mt-2">{printingOrder.address}</p>
-              </div>
-              <div className="text-right">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Order Info</h3>
-                <p className="text-sm font-bold">Order ID: <span className="text-gray-500">#{printingOrder.id?.slice(-8).toUpperCase()}</span></p>
-                <p className="text-sm text-gray-600">Date: {new Date(printingOrder.createdAt).toLocaleDateString()}</p>
-                <p className="text-sm text-gray-600">Time: {new Date(printingOrder.createdAt).toLocaleTimeString()}</p>
-                <p className="text-sm text-gray-600">Status: {printingOrder.status}</p>
-              </div>
-            </div>
+              {/* Receipt Content */}
+              <div className="p-8 md:p-12">
+                <div className="text-center mb-10 border-b-2 border-gray-100 pb-8">
+                  <h1 className="text-4xl font-black text-orange-600 mb-2 tracking-tighter">MEHEDI TELECOM</h1>
+                  <p className="text-gray-500 font-medium">Your Trusted Mobile Shop</p>
+                  <div className="mt-4 space-y-1">
+                    <p className="text-gray-400 text-xs">Bhitorbond, Nageswari, Kurigram, Bangladesh</p>
+                    <p className="text-gray-600 text-sm font-bold">Phone: +880 1786 958055</p>
+                    <p className="text-gray-400 text-xs">Email: info@meheditelecom.com</p>
+                  </div>
+                </div>
 
-            <div className="mb-8">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b-2 border-gray-100">
-                    <th className="py-3 font-bold text-sm">Item Description</th>
-                    <th className="py-3 font-bold text-sm text-center">Qty</th>
-                    <th className="py-3 font-bold text-sm text-right">Price</th>
-                    <th className="py-3 font-bold text-sm text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {printingOrder.items.map((item, i) => (
-                    <tr key={i}>
-                      <td className="py-4 text-sm font-medium">{item.name}</td>
-                      <td className="py-4 text-sm text-center">{item.quantity}</td>
-                      <td className="py-4 text-sm text-right">৳{item.price.toLocaleString()}</td>
-                      <td className="py-4 text-sm text-right font-bold">৳{(item.price * item.quantity).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                <div className="grid grid-cols-2 gap-8 mb-8">
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Customer Details</h3>
+                    <p className="font-bold text-lg">{printingOrder.customerName}</p>
+                    <p className="text-gray-600 text-sm">{printingOrder.phone}</p>
+                    <p className="text-gray-600 text-sm">{printingOrder.userEmail || 'N/A'}</p>
+                    <p className="text-gray-600 text-sm mt-2">{printingOrder.address}</p>
+                  </div>
+                  <div className="text-right">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Order Info</h3>
+                    <p className="text-sm font-bold">Order ID: <span className="text-gray-500">#{printingOrder.id?.slice(-8).toUpperCase()}</span></p>
+                    <p className="text-sm text-gray-600">Date: {new Date(printingOrder.createdAt).toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-600">Time: {new Date(printingOrder.createdAt).toLocaleTimeString()}</p>
+                    <p className="text-sm text-gray-600">Status: {printingOrder.status}</p>
+                  </div>
+                </div>
 
-            <div className="border-t-2 border-gray-100 pt-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-500">Subtotal</span>
-                <span className="font-bold">৳{printingOrder.totalPrice.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-500">Delivery Fee</span>
-                <span className="font-bold">৳0</span>
-              </div>
-              <div className="flex justify-between items-center pt-4 border-t border-gray-50">
-                <span className="text-xl font-black">Grand Total</span>
-                <span className="text-2xl font-black text-orange-600">৳{printingOrder.totalPrice.toLocaleString()}</span>
-              </div>
-            </div>
+                <div className="mb-8">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b-2 border-gray-100">
+                        <th className="py-3 font-bold text-sm">Item Description</th>
+                        <th className="py-3 font-bold text-sm text-center">Qty</th>
+                        <th className="py-3 font-bold text-sm text-right">Price</th>
+                        <th className="py-3 font-bold text-sm text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {printingOrder.items.map((item, i) => (
+                        <tr key={i}>
+                          <td className="py-4 text-sm font-medium">{item.name}</td>
+                          <td className="py-4 text-sm text-center">{item.quantity}</td>
+                          <td className="py-4 text-sm text-right">৳{item.price.toLocaleString()}</td>
+                          <td className="py-4 text-sm text-right font-bold">৳{(item.price * item.quantity).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-            <div className="mt-12 text-center border-t border-dashed border-gray-200 pt-8">
-              <p className="text-sm font-bold text-gray-600">Thank you for shopping with us!</p>
-              <p className="text-xs text-gray-400 mt-1">Please keep this receipt for your records.</p>
-              <div className="mt-4 flex justify-center">
-                <div className="w-32 h-1 bg-gray-100 rounded-full"></div>
+                <div className="border-t-2 border-gray-100 pt-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-500">Subtotal</span>
+                    <span className="font-bold">৳{printingOrder.totalPrice.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-500">Delivery Fee</span>
+                    <span className="font-bold">৳0</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-50">
+                    <span className="text-xl font-black">Grand Total</span>
+                    <span className="text-2xl font-black text-orange-600">৳{printingOrder.totalPrice.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="mt-12 text-center border-t border-dashed border-gray-200 pt-8">
+                  <p className="text-sm font-bold text-gray-600">Thank you for shopping with us!</p>
+                  <p className="text-xs text-gray-400 mt-1">Please keep this receipt for your records.</p>
+                  <div className="mt-4 flex justify-center">
+                    <div className="w-32 h-1 bg-gray-100 rounded-full"></div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -10,20 +10,23 @@
   }
 
   @media print {
-    body * {
-      visibility: hidden;
+    body > *:not(#printable-receipt-container) {
+      display: none !important;
     }
-    #printable-receipt, #printable-receipt * {
-      visibility: visible;
-    }
-    #printable-receipt {
+    #printable-receipt-container {
+      display: block !important;
       position: absolute;
       left: 0;
       top: 0;
       width: 100%;
       margin: 0;
       padding: 0;
-      display: block !important;
+    }
+    #printable-receipt {
+      box-shadow: none !important;
+      border: none !important;
+      margin: 0 !important;
+      width: 100% !important;
     }
   }
 }
