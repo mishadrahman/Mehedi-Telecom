@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { CartProvider } from './CartContext';
 import { ToastProvider } from './ToastContext';
 import { AuthProvider } from './AuthContext';
