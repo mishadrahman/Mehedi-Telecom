@@ -1,13 +1,15 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Phone, MessageCircle, Menu, X, User, LogOut, LayoutDashboard, ClipboardList } from 'lucide-react';
+import { ShoppingCart, Phone, MessageCircle, Menu, X, User, LogOut, LayoutDashboard, ClipboardList, Heart } from 'lucide-react';
 import { useCart } from '../CartContext';
+import { useWishlist } from '../WishlistContext';
 import { useToast } from '../ToastContext';
 import { useAuth } from '../AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 const Navbar = () => {
   const { totalItems } = useCart();
+  const { wishlistCount } = useWishlist();
   const { user, userData, signOut } = useAuth();
   const { showToast } = useToast();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -37,6 +39,14 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-8">
             <Link to="/" className="text-gray-600 hover:text-orange-600 font-medium">Home</Link>
             <Link to="/shop" className="text-gray-600 hover:text-orange-600 font-medium">Shop</Link>
+            <Link to="/wishlist" className="relative text-gray-600 hover:text-red-500">
+              <Heart size={24} />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
             <Link to="/cart" className="relative text-gray-600 hover:text-orange-600">
               <ShoppingCart size={24} />
               {totalItems > 0 && (
@@ -111,6 +121,14 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-4">
+            <Link to="/wishlist" className="relative text-gray-600">
+              <Heart size={24} />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
             <Link to="/cart" className="relative text-gray-600">
               <ShoppingCart size={24} />
               {totalItems > 0 && (
@@ -139,6 +157,9 @@ const Navbar = () => {
             <div className="py-4 px-4 flex flex-col gap-4">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className="text-gray-600 font-medium py-2">Home</Link>
               <Link to="/shop" onClick={() => setIsMenuOpen(false)} className="text-gray-600 font-medium py-2">Shop</Link>
+              <Link to="/wishlist" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-gray-600 font-medium py-2">
+                <Heart size={20} /> Wishlist ({wishlistCount})
+              </Link>
               {user ? (
                 <>
                   <div className="py-2 border-t border-gray-50">

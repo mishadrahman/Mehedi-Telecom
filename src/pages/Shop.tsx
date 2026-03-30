@@ -6,14 +6,25 @@ import ProductCard from '../components/ProductCard';
 import { Search, Filter, SlidersHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { useLocation } from 'react-router-dom';
+
 const Shop = () => {
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const initialBrand = queryParams.get('brand') || 'All';
+
   const [products, setProducts] = useState<Product[]>([]);
   const [filtered, setFiltered] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [brandFilter, setBrandFilter] = useState('All');
+  const [brandFilter, setBrandFilter] = useState(initialBrand);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [priceRange, setPriceRange] = useState('All');
+
+  useEffect(() => {
+    const brand = queryParams.get('brand');
+    if (brand) setBrandFilter(brand);
+  }, [location.search]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -99,6 +110,36 @@ const Shop = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          
+          {/* Search Suggestions */}
+          <AnimatePresence>
+            {searchTerm.length > 1 && products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute top-full left-0 right-0 bg-white mt-2 rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden max-h-80 overflow-y-auto"
+              >
+                {products
+                  .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .slice(0, 6)
+                  .map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setSearchTerm(p.name); }}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                    >
+                      <img src={p.image} alt="" className="w-10 h-10 object-contain rounded bg-gray-50" />
+                      <div>
+                        <p className="font-bold text-sm text-gray-900">{p.name}</p>
+                        <p className="text-xs text-gray-500">৳{(p.discountPrice || p.price).toLocaleString()}</p>
+                      </div>
+                    </button>
+                  ))
+                }
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
 

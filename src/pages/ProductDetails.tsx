@@ -1,18 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { doc, getDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, limit, getDocs, orderBy } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Product } from '../types';
 import { useCart } from '../CartContext';
 import { useToast } from '../ToastContext';
-import { ShoppingCart, Zap, Smartphone, Cpu, Battery, MemoryStick as Memory, Camera, ArrowLeft, ChevronRight } from 'lucide-react';
-import { motion } from 'motion/react';
+import { ShoppingCart, Zap, Smartphone, Cpu, Battery, MemoryStick as Memory, Camera, ArrowLeft, ChevronRight, Star, MessageSquare } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../AuthContext';
+import { addDoc, serverTimestamp } from 'firebase/firestore';
 
 const ProductDetails = () => {
   const { id } = useParams();
+  const { user, userData } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
   const { addToCart } = useCart();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -58,6 +65,21 @@ const ProductDetails = () => {
           }
 
           setRelatedProducts(relatedList.slice(0, 6));
+
+          // Fetch Reviews
+          const reviewsRef = collection(db, 'reviews');
+          const reviewsQ = query(reviewsRef, where('productId', '==', id));
+          const reviewsSnap = await getDocs(reviewsQ);
+          const reviewsData = reviewsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          
+          // Sort on client side to avoid composite index requirement
+          reviewsData.sort((a: any, b: any) => {
+            const dateA = a.createdAt?.seconds || 0;
+            const dateB = b.createdAt?.seconds || 0;
+            return dateB - dateA;
+          });
+          
+          setReviews(reviewsData);
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, `products/${id}`);
@@ -67,7 +89,68 @@ const ProductDetails = () => {
     };
     fetchProductAndRelated();
     window.scrollTo(0, 0);
-  }, [id]);
+
+    // Track viewed product for recommendations
+    if (id) {
+      const trackView = () => {
+        const viewed = JSON.parse(localStorage.getItem('viewed_products') || '[]');
+        const updated = [id, ...viewed.filter((vid: string) => vid !== id)].slice(0, 12);
+        localStorage.setItem('viewed_products', JSON.stringify(updated));
+        
+        // Also track categories
+        if (product?.category) {
+          const categories = JSON.parse(localStorage.getItem('viewed_categories') || '{}');
+          categories[product.category] = (categories[product.category] || 0) + 1;
+          localStorage.setItem('viewed_categories', JSON.stringify(categories));
+        }
+      };
+      trackView();
+    }
+  }, [id, product?.category]);
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      showToast('Please login to leave a review', 'info');
+      navigate('/login');
+      return;
+    }
+    if (!newComment.trim()) return;
+
+    setReviewLoading(true);
+    try {
+      const reviewData = {
+        productId: id,
+        userId: user.uid,
+        userName: userData?.name || 'Anonymous',
+        rating: newRating,
+        comment: newComment,
+        createdAt: serverTimestamp()
+      };
+      await addDoc(collection(db, 'reviews'), reviewData);
+      setNewComment('');
+      setNewRating(5);
+      showToast('Review submitted!', 'success');
+      
+      // Refresh reviews
+      const reviewsRef = collection(db, 'reviews');
+      const reviewsQ = query(reviewsRef, where('productId', '==', id));
+      const reviewsSnap = await getDocs(reviewsQ);
+      const reviewsData = reviewsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      reviewsData.sort((a: any, b: any) => {
+        const dateA = a.createdAt?.seconds || 0;
+        const dateB = b.createdAt?.seconds || 0;
+        return dateB - dateA;
+      });
+      
+      setReviews(reviewsData);
+    } catch (error) {
+      showToast('Failed to submit review', 'error');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div></div>;
   if (!product) return <div className="min-h-screen flex items-center justify-center text-xl font-bold">Product not found.</div>;
@@ -183,7 +266,7 @@ const ProductDetails = () => {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mt-16 mb-24 md:mb-12"
+          className="mt-16"
         >
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold">Related Products</h2>
@@ -214,6 +297,113 @@ const ProductDetails = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Reviews Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="mt-16 mb-32 md:mb-20"
+      >
+        <div className="flex items-center gap-3 mb-8">
+          <MessageSquare className="text-orange-600" size={28} />
+          <h2 className="text-2xl font-bold text-gray-900">Customer Reviews</h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          {/* Review Form */}
+          <div className="lg:col-span-1">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-24">
+              <h3 className="font-bold text-lg mb-4">Write a Review</h3>
+              {user ? (
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setNewRating(star)}
+                          className={`p-1 transition-colors ${newRating >= star ? 'text-yellow-400' : 'text-gray-200'}`}
+                        >
+                          <Star size={24} fill={newRating >= star ? 'currentColor' : 'none'} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Your Comment</label>
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share your experience with this product..."
+                      className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[120px] text-sm"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={reviewLoading}
+                    className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition-colors shadow-lg shadow-orange-200 disabled:opacity-50"
+                  >
+                    {reviewLoading ? 'Submitting...' : 'Post Review'}
+                  </button>
+                </form>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-gray-500 mb-4 text-sm">Please login to write a review.</p>
+                  <Link to="/login" className="text-orange-600 font-bold hover:underline">Login Now</Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Review List */}
+          <div className="lg:col-span-2 space-y-6">
+            {reviews.length > 0 ? (
+              reviews.map((review) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  key={review.id} 
+                  className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold">
+                        {review.userName.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">{review.userName}</h4>
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star 
+                              key={star} 
+                              size={12} 
+                              className={review.rating >= star ? 'text-yellow-400' : 'text-gray-200'} 
+                              fill={review.rating >= star ? 'currentColor' : 'none'} 
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {review.createdAt?.seconds ? new Date(review.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 text-sm leading-relaxed">{review.comment}</p>
+                </motion.div>
+              ))
+            ) : (
+              <div className="bg-gray-50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
+                <MessageSquare size={40} className="text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No reviews yet. Be the first to review this product!</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
 
       {/* Sticky Action Footer (Persistent) */}
       <motion.div 

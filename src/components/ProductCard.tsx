@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Zap } from 'lucide-react';
+import { ShoppingCart, Zap, Heart } from 'lucide-react';
 import { Product } from '../types';
 import { useCart } from '../CartContext';
+import { useWishlist } from '../WishlistContext';
 import { useToast } from '../ToastContext';
 import { motion } from 'motion/react';
 
@@ -12,8 +13,23 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
   const navigate = useNavigate();
+
+  const isFavorite = isInWishlist(product.id || '');
+
+  const handleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isFavorite) {
+      removeFromWishlist(product.id || '');
+      showToast('Removed from wishlist', 'info');
+    } else {
+      addToWishlist(product);
+      showToast('Added to wishlist!', 'success');
+    }
+  };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -40,6 +56,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
             referrerPolicy="no-referrer"
           />
+          <button 
+            onClick={handleWishlist}
+            className={`absolute top-3 right-3 p-2 rounded-full shadow-md transition-all z-10 ${
+              isFavorite ? 'bg-red-500 text-white' : 'bg-white/80 text-gray-400 hover:text-red-500'
+            }`}
+          >
+            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
           {product.stockStatus === 'Out of Stock' && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">

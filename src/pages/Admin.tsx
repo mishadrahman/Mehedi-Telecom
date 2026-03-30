@@ -9,7 +9,8 @@ import { uploadToTelegram, getFirebaseErrorMessage } from '../lib/utils';
 import { useToast } from '../ToastContext';
 import { 
   Plus, Trash2, Edit, Package, ShoppingBag, LogOut, 
-  Upload, CheckCircle, Clock, Truck, Search, Image as ImageIcon
+  Upload, CheckCircle, Clock, Truck, Search, Image as ImageIcon,
+  Printer, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -464,6 +465,7 @@ const ProductManager = () => {
 
 const OrderManager = () => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
   const { showToast } = useToast();
 
   const fetchOrders = async () => {
@@ -478,6 +480,14 @@ const OrderManager = () => {
   };
 
   useEffect(() => { fetchOrders(); }, []);
+
+  const handlePrint = (order: Order) => {
+    setPrintingOrder(order);
+    setTimeout(() => {
+      window.print();
+      setPrintingOrder(null);
+    }, 100);
+  };
 
   const updateStatus = async (id: string, status: Order['status']) => {
     const path = `orders/${id}`;
@@ -566,12 +576,98 @@ const OrderManager = () => {
                       <p className="text-[10px] text-gray-400 text-center uppercase tracking-wider">Update Status</p>
                     </>
                   )}
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handlePrint(order)}
+                    className="w-full mt-2 flex items-center justify-center gap-2 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200 transition-colors text-sm"
+                  >
+                    <Printer size={16} /> Print Receipt
+                  </motion.button>
                 </div>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Print-only Receipt Component */}
+      {printingOrder && (
+        <div className="fixed inset-0 bg-white z-[9999] p-8 print:block hidden overflow-auto" id="printable-receipt">
+          <div className="max-w-2xl mx-auto border-2 border-gray-200 p-8 rounded-lg">
+            <div className="text-center mb-8 border-b-2 border-gray-100 pb-6">
+              <h1 className="text-3xl font-black text-orange-600 mb-1">MEHEDI TELECOM</h1>
+              <p className="text-gray-500 text-sm">Your Trusted Mobile Shop</p>
+              <p className="text-gray-400 text-xs mt-2">Main Road, Your City, Bangladesh</p>
+              <p className="text-gray-400 text-xs">Phone: +880 1234 567890</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 mb-8">
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Customer Details</h3>
+                <p className="font-bold text-lg">{printingOrder.customerName}</p>
+                <p className="text-gray-600 text-sm">{printingOrder.phone}</p>
+                <p className="text-gray-600 text-sm">{printingOrder.userEmail || 'N/A'}</p>
+                <p className="text-gray-600 text-sm mt-2">{printingOrder.address}</p>
+              </div>
+              <div className="text-right">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Order Info</h3>
+                <p className="text-sm font-bold">Order ID: <span className="text-gray-500">#{printingOrder.id?.slice(-8).toUpperCase()}</span></p>
+                <p className="text-sm text-gray-600">Date: {new Date(printingOrder.createdAt).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-600">Time: {new Date(printingOrder.createdAt).toLocaleTimeString()}</p>
+                <p className="text-sm text-gray-600">Status: {printingOrder.status}</p>
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b-2 border-gray-100">
+                    <th className="py-3 font-bold text-sm">Item Description</th>
+                    <th className="py-3 font-bold text-sm text-center">Qty</th>
+                    <th className="py-3 font-bold text-sm text-right">Price</th>
+                    <th className="py-3 font-bold text-sm text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {printingOrder.items.map((item, i) => (
+                    <tr key={i}>
+                      <td className="py-4 text-sm font-medium">{item.name}</td>
+                      <td className="py-4 text-sm text-center">{item.quantity}</td>
+                      <td className="py-4 text-sm text-right">৳{item.price.toLocaleString()}</td>
+                      <td className="py-4 text-sm text-right font-bold">৳{(item.price * item.quantity).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="border-t-2 border-gray-100 pt-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-bold">৳{printingOrder.totalPrice.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500">Delivery Fee</span>
+                <span className="font-bold">৳0</span>
+              </div>
+              <div className="flex justify-between items-center pt-4 border-t border-gray-50">
+                <span className="text-xl font-black">Grand Total</span>
+                <span className="text-2xl font-black text-orange-600">৳{printingOrder.totalPrice.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="mt-12 text-center border-t border-dashed border-gray-200 pt-8">
+              <p className="text-sm font-bold text-gray-600">Thank you for shopping with us!</p>
+              <p className="text-xs text-gray-400 mt-1">Please keep this receipt for your records.</p>
+              <div className="mt-4 flex justify-center">
+                <div className="w-32 h-1 bg-gray-100 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -23,10 +23,22 @@ const Footer = () => {
             </ul>
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-4">Contact Us</h3>
-            <p className="text-gray-400">Main Road, Your City, Bangladesh</p>
-            <p className="text-gray-400">Phone: +880 1234 567890</p>
-            <p className="text-gray-400">Email: info@meheditelecom.com</p>
+            <h3 className="text-xl font-bold mb-4">Newsletter</h3>
+            <p className="text-gray-400 mb-4 text-sm">Subscribe to get the latest offers and updates.</p>
+            <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); alert('Subscribed!'); }}>
+              <input 
+                type="email" 
+                placeholder="Your email" 
+                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                required
+              />
+              <button 
+                type="submit" 
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-orange-700 transition-colors"
+              >
+                Join
+              </button>
+            </form>
           </div>
         </div>
         <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-500">

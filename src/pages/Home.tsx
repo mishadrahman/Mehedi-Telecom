@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product } from '../types';
 import Hero from '../components/Hero';
@@ -11,16 +11,36 @@ import { motion } from 'motion/react';
 const Home = () => {
   const [featured, setFeatured] = useState<Product[]>([]);
   const [latest, setLatest] = useState<Product[]>([]);
+  const [recommended, setRecommended] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch Latest & Featured
         const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'), limit(8));
         const snapshot = await getDocs(q);
         const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setLatest(products);
         setFeatured(products.slice(0, 4));
+
+        // Fetch Recommendations based on history
+        const viewedCategories = JSON.parse(localStorage.getItem('viewed_categories') || '{}');
+        const topCategories = Object.entries(viewedCategories)
+          .sort((a: any, b: any) => b[1] - a[1])
+          .slice(0, 2)
+          .map(entry => entry[0]);
+
+        if (topCategories.length > 0) {
+          const recQuery = query(
+            collection(db, 'products'),
+            where('category', 'in', topCategories),
+            limit(4)
+          );
+          const recSnapshot = await getDocs(recQuery);
+          const recProducts = recSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+          setRecommended(recProducts);
+        }
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -52,6 +72,34 @@ const Home = () => {
   return (
     <div className="pb-12 overflow-hidden">
       <Hero />
+
+      {/* Recommended for You */}
+      {recommended.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 py-12">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-8"
+          >
+            <h2 className="text-3xl font-bold text-gray-900">Recommended for You</h2>
+            <p className="text-gray-500">Based on your browsing history</p>
+          </motion.div>
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={containerVariants}
+            className="grid grid-cols-2 md:grid-cols-4 gap-6"
+          >
+            {recommended.map(product => (
+              <motion.div key={product.id} variants={itemVariants}>
+                <ProductCard product={product} />
+              </motion.div>
+            ))}
+          </motion.div>
+        </section>
+      )}
 
       {/* Features */}
       <motion.div 
@@ -89,6 +137,33 @@ const Home = () => {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Shop by Brand */}
+      <section className="max-w-7xl mx-auto px-4 mb-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-8"
+        >
+          <h2 className="text-3xl font-bold text-gray-900">Shop by Brand</h2>
+          <p className="text-gray-500">Find your favorite mobile brand</p>
+        </motion.div>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+          {['Apple', 'Samsung', 'Xiaomi', 'Vivo', 'Oppo', 'Realme'].map((brand) => (
+            <Link 
+              key={brand}
+              to={`/shop?brand=${brand}`}
+              className="bg-white p-6 rounded-2xl border border-gray-100 flex flex-col items-center justify-center gap-3 hover:shadow-lg hover:border-orange-200 transition-all group"
+            >
+              <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-orange-600 transition-colors">
+                <Smartphone size={24} />
+              </div>
+              <span className="font-bold text-gray-700 group-hover:text-orange-600">{brand}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* Featured Products */}
       <section className="max-w-7xl mx-auto px-4 mb-16">
